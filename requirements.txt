@@ -1,4 +1,6 @@
-pyTelegramBotAPI
-instagrapi
-Flask
-Pillow
+python-telegram-bot==20.3
+Flask==2.3.2
+instagrapi==1.16.22
+requests==2.31.0
+python-dotenv==1.0.0
+gunicorn==20.1.0
