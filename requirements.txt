@@ -1,0 +1,4 @@
+pyTelegramBotAPI
+instagrapi
+Flask
+Pillow
