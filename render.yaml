@@ -1,17 +1,6 @@
 services:
   - type: web
-    name: a
+    name: instagram-bot
     env: python
-    plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python a/bot.py"
-    envVars:
-      - key: TELEGRAM_TOKEN
-        value: ${{ TELEGRAM_TOKEN }}
-    regions:
-      - oregon
-    autoDeploy: true
-    healthCheckPath: "/"
-    env:
-      - key: PYTHON_VERSION
-        value: "3.11"
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
