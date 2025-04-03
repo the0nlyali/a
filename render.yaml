@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: instagram-story-downloader-bot
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python bot.py"
+    envVars:
+      - key: TELEGRAM_TOKEN
+        value: ${{ TELEGRAM_TOKEN }}
+      - key: FLASK_APP
+        value: "app.py"  # Adjust if your Flask app entry point is different
+    regions:
+      - oregon
+    autoDeploy: true
+    healthCheckPath: "/"
+    env:
+      - key: PYTHON_VERSION
+        value: "3.11"
