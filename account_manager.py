@@ -1,31 +1,38 @@
 import json
 import os
-from pathlib import Path
-from datetime import datetime
+from threading import Lock
 
 class AccountManager:
     def __init__(self, data_dir="data"):
-        self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(exist_ok=True)
-        self.accounts_file = self.data_dir / "accounts.json"
-        self.accounts = self._load_accounts()
-
+        self.data_dir = data_dir
+        self.accounts_file = os.path.join(data_dir, "accounts.json")
+        self.lock = Lock()
+        os.makedirs(data_dir, exist_ok=True)
+        
+    def add_account(self, username, password, chat_id):
+        with self.lock:
+            accounts = self._load_accounts()
+            accounts[username] = {
+                'password': password,
+                'chat_id': chat_id,
+                'needs_2fa': False
+            }
+            self._save_accounts(accounts)
+    
+    def get_account(self, username):
+        with self.lock:
+            accounts = self._load_accounts()
+            return accounts.get(username)
+    
     def _load_accounts(self):
-        if self.accounts_file.exists():
-            with open(self.accounts_file) as f:
-                return json.load(f)
+        try:
+            if os.path.exists(self.accounts_file):
+                with open(self.accounts_file) as f:
+                    return json.load(f)
+        except:
+            pass
         return {}
-
-    def add_account(self, username, password):
-        self.accounts[username] = {
-            'username': username,
-            'password': password,  # Note: In production, encrypt this
-            'added_at': datetime.now().isoformat()
-        }
-        self._save_accounts()
-
-    def _save_accounts(self):
+    
+    def _save_accounts(self, accounts):
         with open(self.accounts_file, 'w') as f:
-            json.dump(self.accounts, f, indent=2)
-
-    # ... (include your other account management methods)
+            json.dump(accounts, f)
