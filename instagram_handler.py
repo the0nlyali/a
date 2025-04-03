@@ -1,110 +1,129 @@
 import os
 import requests
 from instagrapi import Client
-from urllib.parse import urlparse
+from instagrapi.exceptions import LoginRequired, ChallengeRequired
 
 class InstagramHandler:
-    def __init__(self):
+    def __init__(self, account_manager, verification):
         self.client = Client()
-        self.telegram_bot = None
-        self.temp_dir = "temp_media"
+        self.account_manager = account_manager
+        self.verification = verification
+        self.temp_dir = "temp_downloads"
         os.makedirs(self.temp_dir, exist_ok=True)
+        self.telegram_bot = None
 
     def set_telegram_bot(self, bot):
         self.telegram_bot = bot
 
-    def get_content(self, input_text):
+    def login(self, username):
+        account = self.account_manager.get_account(username)
+        if not account:
+            raise Exception("Account not found. Use /login first")
+        
         try:
-            if not input_text:
-                return False, "No input provided", None
+            self.client.login(username, account['password'])
+            return True
             
-            input_text = input_text.strip()
-            
-            # Handle usernames
-            if input_text.startswith('@'):
-                return self._handle_username(input_text[1:])
-            
-            # Handle URLs
-            parsed = urlparse(input_text)
-            if 'instagram.com' in parsed.netloc:
-                if '/stories/' in parsed.path:
-                    return self._handle_story(input_text)
-                elif '/p/' in parsed.path or '/reel/' in parsed.path:
-                    return self._handle_post(input_text)
-            
-            return False, "Unsupported input format", None
+        except ChallengeRequired:
+            self.verification.start_verification(username, account['chat_id'])
+            return False
             
         except Exception as e:
-            return False, f"Error: {str(e)}", None
+            raise Exception(f"Login failed: {str(e)}")
 
-    def _handle_username(self, username):
+    def get_content(self, input_text):
         try:
-            user_id = self.client.user_id_from_username(username)
-            stories = self.client.user_stories(user_id)
-            
-            if not stories:
-                return False, "No stories available", None
+            if input_text.startswith('@'):
+                return self._download_stories(input_text[1:])
+            elif "instagram.com" in input_text:
+                if "/stories/" in input_text:
+                    return self._download_story_by_url(input_text)
+                elif "/p/" in input_text or "/reel/" in input_text:
+                    return self._download_post(input_text)
+            return False, "Unsupported content type", []
                 
-            media_items = []
-            for story in stories:
+        except LoginRequired:
+            return False, "Session expired. Please /login again", []
+        except Exception as e:
+            return False, f"Error: {str(e)}", []
+
+    def _download_stories(self, username):
+        user_id = self.client.user_id_from_username(username)
+        stories = self.client.user_stories(user_id)
+        
+        media = []
+        for story in stories:
+            try:
                 if story.media_type == 1:  # Photo
-                    url = story.thumbnail_url or story.url
-                    ext = ".jpg"
+                    path = f"{self.temp_dir}/{story.pk}.jpg"
+                    self.client.photo_download(story.pk, path)
                 else:  # Video
-                    url = story.video_url
-                    ext = ".mp4"
+                    path = f"{self.temp_dir}/{story.pk}.mp4"
+                    self.client.video_download(story.pk, path)
                 
-                path = self._download_file(url, f"story_{story.pk}{ext}")
-                media_items.append({
+                media.append({
                     'type': 'photo' if story.media_type == 1 else 'video',
                     'path': path
                 })
-            
-            return True, f"Downloaded {len(media_items)} stories", media_items
-            
-        except Exception as e:
-            return False, f"Failed to download stories: {str(e)}", None
+            except Exception as e:
+                continue
+                
+        if not media:
+            return False, "No stories found for this user", []
+        return True, f"Downloaded {len(media)} items", media
 
-    def _handle_story(self, url):
-        # Similar to _handle_username but extracts username from URL
-        pass
-
-    def _handle_post(self, url):
-        try:
-            media_pk = self.client.media_pk_from_url(url)
-            media = self.client.media_info(media_pk)
-            
-            media_items = []
-            if media.media_type == 8:  # Carousel
-                for item in media.resources:
-                    item_path = self._process_media_item(item)
-                    media_items.append(item_path)
-            else:
-                item_path = self._process_media_item(media)
-                media_items.append(item_path)
-            
-            return True, "Downloaded post", media_items
-            
-        except Exception as e:
-            return False, f"Failed to download post: {str(e)}", None
-
-    def _process_media_item(self, media):
-        if media.media_type == 1:  # Photo
-            url = media.thumbnail_url or media.url
-            ext = ".jpg"
-        else:  # Video
-            url = media.video_url
-            ext = ".mp4"
+    def _download_story_by_url(self, url):
+        story_pk = self.client.media_pk_from_url(url)
+        story = self.client.story_info(story_pk)
         
-        return self._download_file(url, f"media_{media.pk}{ext}")
+        if story.media_type == 1:  # Photo
+            path = f"{self.temp_dir}/{story.pk}.jpg"
+            self.client.photo_download(story.pk, path)
+        else:  # Video
+            path = f"{self.temp_dir}/{story.pk}.mp4"
+            self.client.video_download(story.pk, path)
+            
+        return True, "Story downloaded", [{
+            'type': 'photo' if story.media_type == 1 else 'video',
+            'path': path
+        }]
 
-    def _download_file(self, url, filename):
-        path = os.path.join(self.temp_dir, filename)
-        response = requests.get(url, stream=True)
-        with open(path, 'wb') as f:
-            for chunk in response.iter_content(1024):
-                f.write(chunk)
-        return path
+    def _download_post(self, url):
+        media_pk = self.client.media_pk_from_url(url)
+        media = self.client.media_info(media_pk)
+        
+        downloaded_items = []
+        
+        if media.media_type == 1:  # Single photo
+            path = f"{self.temp_dir}/{media.pk}.jpg"
+            self.client.photo_download(media.pk, path)
+            downloaded_items.append({
+                'type': 'photo',
+                'path': path
+            })
+            
+        elif media.media_type == 2:  # Single video
+            path = f"{self.temp_dir}/{media.pk}.mp4"
+            self.client.video_download(media.pk, path)
+            downloaded_items.append({
+                'type': 'video',
+                'path': path
+            })
+            
+        elif media.media_type == 8:  # Album
+            for item in media.resources:
+                if item.media_type == 1:
+                    path = f"{self.temp_dir}/{item.pk}.jpg"
+                    self.client.photo_download(item.pk, path)
+                else:
+                    path = f"{self.temp_dir}/{item.pk}.mp4"
+                    self.client.video_download(item.pk, path)
+                downloaded_items.append({
+                    'type': 'photo' if item.media_type == 1 else 'video',
+                    'path': path
+                })
+        
+        return True, f"Downloaded {len(downloaded_items)} items", downloaded_items
 
     def cleanup_files(self, media_items):
         for item in media_items:
