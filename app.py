@@ -1,6 +1,5 @@
 import os
 import logging
-import threading
 from flask import Flask, request
 from telebot import TeleBot, types
 from instagram_handler import InstagramHandler
@@ -19,10 +18,13 @@ account_manager = AccountManager()
 instagram.account_manager = account_manager
 instagram.set_telegram_bot(bot)
 
-# Handlers
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "🚀 Send Instagram @username or story URL")
+    bot.reply_to_message(message.chat.id, message.message_id, 
+                        "🚀 Send me:\n"
+                        "- Instagram @username\n"
+                        "- Story URL\n"
+                        "- Post URL")
 
 @bot.message_handler(func=lambda m: True)
 def handle_message(message):
@@ -34,15 +36,17 @@ def handle_message(message):
         if success:
             for item in media:
                 with open(item['path'], 'rb') as f:
-                    bot.send_document(message.chat.id, f)
+                    if item['type'] == 'photo':
+                        bot.send_photo(message.chat.id, f)
+                    else:
+                        bot.send_video(message.chat.id, f)
             instagram.cleanup_files(media)
         else:
-            bot.reply_to(message, response)
+            bot.reply_to_message(message.chat.id, message.message_id, response)
     except Exception as e:
         logger.error(f"Error: {e}")
-        bot.reply_to(message, "❌ Download failed")
+        bot.reply_to_message(message.chat.id, message.message_id, "❌ Download failed")
 
-# Webhook
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.method == "POST":
