@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python InstagramStoryDownloader/bot.py"
+    startCommand: "python a/InstagramStoryDownloader/bot.py"
     envVars:
       - key: TELEGRAM_TOKEN
         value: ${{ TELEGRAM_TOKEN }}
