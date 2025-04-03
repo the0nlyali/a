@@ -12,6 +12,7 @@ from config import TELEGRAM_TOKEN, WELCOME_MESSAGE, HELP_MESSAGE, ERROR_MESSAGES
 from account_manager import AccountManager
 from account_commands import register_account_commands
 from rotation_commands import register_rotation_commands
+from flask import Flask
 
 # Configure logging
 logging.basicConfig(
@@ -38,7 +39,7 @@ def run_bot(instagram_handler=None):
         
         # Define admin user IDs (these users can manage accounts)
         # You can modify this list to include your own user ID
-        admin_ids = [123456789]  # Replace with actual admin Telegram IDs
+        admin_ids = [1887983666]  # Replace with actual admin Telegram IDs
         
         # Register account management commands
         if hasattr(instagram, 'account_manager'):
@@ -236,3 +237,14 @@ def run_bot(instagram_handler=None):
     except Exception as e:
         logger.error(f"Error starting bot: {e}")
         return
+
+# Flask web server to bind to the required port
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Instagram Downloader Bot is running!"
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
