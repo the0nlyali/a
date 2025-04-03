@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 import os
 import logging
-import threading
-from pathlib import Path
 from flask import Flask, request
-import telebot
-from telebot import types
+from telebot import TeleBot, types
 from instagram_handler import InstagramHandler
 from account_manager import AccountManager
 from config import (
@@ -18,12 +15,12 @@ from config import (
 
 # Initialize Flask and Telegram bot
 app = Flask(__name__)
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
+bot = TeleBot(TELEGRAM_TOKEN)
 logger = logging.getLogger(__name__)
 
 # Setup directories
-DATA_DIR = Path(__file__).parent / 'data'
-DATA_DIR.mkdir(exist_ok=True)
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # Initialize Instagram handler
 instagram = InstagramHandler()
@@ -55,25 +52,20 @@ def login(message):
         logger.error(f"Login error: {e}")
         bot.reply_to(message, "⚠️ Login failed. Try again later.")
 
-# ================== FLASK ROUTES ==================
-@app.route('/')
-def home():
-    return "Instagram Downloader Bot is running!"
-
+# ================== WEBHOOK HANDLER ==================
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
-        update = types.Update.de_json(request.get_data().decode('utf-8'))
+        json_data = request.get_data().decode('utf-8')
+        update = types.Update.de_json(json_data)
         bot.process_new_updates([update])
         return '', 200
     return 'Bad request', 400
 
-def set_webhook():
-    webhook_url = f"https://{os.environ.get('RENDER_APP_NAME')}.onrender.com/webhook"
-    bot.remove_webhook()
-    bot.set_webhook(url=webhook_url)
-    logger.info(f"Webhook set to: {webhook_url}")
+@app.route('/')
+def home():
+    return "Instagram Downloader Bot is running!"
 
 if __name__ == '__main__':
-    set_webhook()
+    # No automatic webhook setup - you'll set it manually
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
