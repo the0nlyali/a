@@ -1,5 +1,4 @@
 import os
-import logging
 from flask import Flask, request
 from telebot import TeleBot, types
 from instagram_handler import InstagramHandler
