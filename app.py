@@ -52,8 +52,10 @@ def login(message):
         account_manager.add_account(username, password, message.chat.id)
         
         # Start login process
-        instagram.login(username)
-        bot.reply_to(message, "🔐 Login process started...")
+        if instagram.login(username):
+            bot.reply_to(message, "🔐 Login process started...")
+        else:
+            bot.reply_to(message, "❌ Login failed. Please check your credentials.")
         
     except ValueError:
         bot.reply_to(message, "❌ Format: /login username password")
