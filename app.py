@@ -92,7 +92,7 @@ def handle_content(message):
 
 if __name__ == '__main__':
     # Set the webhook URL
-    webhook_url = "https://a-mc08.onrender.com/webhook"
+    webhook_url = "https://a-mc08.onrender.com"  # Replace with your actual webhook URL
     bot.remove_webhook()
     bot.set_webhook(url=webhook_url)
     
