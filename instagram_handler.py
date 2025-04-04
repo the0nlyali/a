@@ -51,23 +51,16 @@ class InstagramHandler:
         
         media = []
         for story in stories:
-            try:
-                if story.media_type == 1:  # Photo
-                    path = os.path.join(self.temp_dir, f"{story.id}.jpg")
-                    self.client.photo_download(story.id, path)
-                    media.append({'type': 'photo', 'path': path})
-                elif story.media_type == 2:  # Video
-                    path = os.path.join(self.temp_dir, f"{story.id}.mp4")
-                    self.client.video_download(story.id, path)
-                    media.append({'type': 'video', 'path': path})
-            except Exception as e:
-                print(f"Error downloading story: {str(e)}")
-        return True, "Stories downloaded successfully", media
+            media_type = 'photo' if story.media_type == 1 else 'video'
+            file_path = os.path.join(self.temp_dir, f"{username}_story_{story.id}.{media_type}")
+            self.client.download_story(story, file_path)
+            media.append({'path': file_path, 'type': media_type})
+        return True, "Stories downloaded successfully.", media
 
     def _download_story_by_url(self, url):
-        # Extract the story ID from the URL and download it
-        # Implementation goes here
-        pass
+        # Extract username from the URL and download stories
+        username = url.split('/')[-2]
+        return self._download_stories(username)
 
     def cleanup_files(self, media):
         for item in media:
