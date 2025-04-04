@@ -1,4 +1,5 @@
 import os
+import requests
 from instagrapi import Client
 from instagrapi.exceptions import LoginRequired, ChallengeRequired
 
@@ -65,3 +66,17 @@ class InstagramHandler:
     def cleanup_files(self, media):
         for item in media:
             os.remove(item['path'])
+
+    def fetch_user_data(self, username):
+        url = f"https://www.instagram.com/{username}/?__a=1"
+        response = requests.get(url)
+        try:
+            data = response.json()
+            return data
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed: {e}")
+            return None
+        except ValueError:
+            print("Failed to decode JSON. Response content:")
+            print(response.text)
+            return None
