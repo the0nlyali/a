@@ -9,7 +9,6 @@ from verification import VerificationHandler
 # Setup
 app = Flask(__name__)
 bot = TeleBot(os.getenv('TELEGRAM_TOKEN'))
-logger = logging.getLogger(__name__)
 
 # Initialize services
 account_manager = AccountManager()
@@ -20,7 +19,20 @@ instagram = InstagramHandler(account_manager, verification)
 instagram.set_telegram_bot(bot)
 verification.set_telegram_bot(bot)
 
-# ===== COMMAND HANDLERS =====
+# Root route
+@app.route('/')
+def index():
+    return "Welcome to the Instagram Downloader Bot!"
+
+# Webhook handler
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.method == "POST":
+        update = types.Update.de_json(request.get_json())
+        bot.process_new_updates([update])
+    return '', 200
+
+# Command Handlers
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(message, 
@@ -77,13 +89,10 @@ def handle_content(message):
     else:
         bot.reply_to(message, response)
 
-# Webhook handler
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.method == "POST":
-        update = types.Update.de_json(request.get_json())
-        bot.process_new_updates([update])
-    return '', 200
-
 if __name__ == '__main__':
+    # Set the webhook URL
+    webhook_url = "https://a-mc08.onrender.com/webhook"
+    bot.remove_webhook()
+    bot.set_webhook(url=webhook_url)
+    
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
