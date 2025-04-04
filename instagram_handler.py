@@ -54,8 +54,16 @@ class InstagramHandler:
         for story in stories:
             media_type = 'photo' if story.media_type == 1 else 'video'
             file_path = os.path.join(self.temp_dir, f"{username}_story_{story.id}.{media_type}")
-            self.client.download_story(story, file_path)
-            media.append({'path': file_path, 'type': media_type})
+            
+            try:
+                self.client.download_story(story, file_path)
+                media.append({'path': file_path, 'type': media_type})
+            except Exception as e:
+                print(f"Failed to download story {story.id}: {str(e)}")
+        
+        if not media:
+            return False, "No stories were downloaded.", []
+        
         return True, "Stories downloaded successfully.", media
 
     def _download_story_by_url(self, url):
@@ -66,17 +74,3 @@ class InstagramHandler:
     def cleanup_files(self, media):
         for item in media:
             os.remove(item['path'])
-
-    def fetch_user_data(self, username):
-        url = f"https://www.instagram.com/{username}/?__a=1"
-        response = requests.get(url)
-        try:
-            data = response.json()
-            return data
-        except requests.exceptions.RequestException as e:
-            print(f"Request failed: {e}")
-            return None
-        except ValueError:
-            print("Failed to decode JSON. Response content:")
-            print(response.text)
-            return None
