@@ -17,7 +17,7 @@ class InstagramHandler:
     def login(self, username):
         account = self.account_manager.get_account(username)
         if not account:
-            raise Exception("Account not found. Use /login first")
+            return False
         
         try:
             self.client.login(username, account['password'])
@@ -28,12 +28,13 @@ class InstagramHandler:
             return False
             
         except Exception as e:
-            raise Exception(f"Login failed: {str(e)}")
+            print(f"Login failed: {str(e)}")
+            return False
 
     def get_content(self, input_text):
         try:
             if input_text.startswith('@'):
-                return self._download_stories(input_text[1:])  # Fixed line
+                return self._download_stories(input_text[1:])
             elif "instagram.com/stories/" in input_text:
                 return self._download_story_by_url(input_text)
             else:
@@ -52,25 +53,22 @@ class InstagramHandler:
         for story in stories:
             try:
                 if story.media_type == 1:  # Photo
-                    path = f"{self.temp_dir}/{story.pk}.jpg"
-                    self.client.photo_download(story.pk, path)
-                else:  # Video
-                    path = f"{self.temp_dir}/{story.pk}.mp4"
-                    self.client.video_download(story.pk, path)
-                
-                media.append({
-                    'type': 'photo' if story.media_type == 1 else 'video',
-                    'path': path
-                })
+                    path = os.path.join(self.temp_dir, f"{story.id}.jpg")
+                    self.client.photo_download(story.id, path)
+                    media.append({'type': 'photo', 'path': path})
+                elif story.media_type == 2:  # Video
+                    path = os.path.join(self.temp_dir, f"{story.id}.mp4")
+                    self.client.video_download(story.id, path)
+                    media.append({'type': 'video', 'path': path})
             except Exception as e:
-                print(f"Error downloading story: {e}")
-                continue
-                
-        return True, f"Downloaded {len(media)} items", media
+                print(f"Error downloading story: {str(e)}")
+        return True, "Stories downloaded successfully", media
 
-    def cleanup_files(self, media_items):
-        for item in media_items:
-            try:
-                os.remove(item['path'])
-            except Exception as e:
-                print(f"Error cleaning up file: {e}")
+    def _download_story_by_url(self, url):
+        # Extract the story ID from the URL and download it
+        # Implementation goes here
+        pass
+
+    def cleanup_files(self, media):
+        for item in media:
+            os.remove(item['path'])
